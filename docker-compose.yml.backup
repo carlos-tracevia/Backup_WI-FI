@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  front:
+    build:
+      context: ./ligador-wifi
+      dockerfile: Dockerfile
+    image: wifi-frontend
+    restart: always
+    ports:
+      - "4205:4205"
+    environment:
+      FRONT_ENV: teste
+    networks:
+      - wifi-network
+
+  back:
+    build:
+      context: ./target/0.0.2
+      dockerfile: Dockerfile
+    image: wifi-backend:0.0.2-SNAPSHOT
+    env_file:
+      - .env
+    ports:
+      - "8085:8085"
+    restart: always
+    networks:
+      - wifi-network
+    environment:
+      - ASTERISK_HOST=asterisk
+      - ASTERISK_PORT=15060
+
+  nginx:
+    build: ./nginx
+    image: wifi-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - front
+      - back
+      - asterisk
+    volumes:
+      - /etc/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/nginx/conf.d/:/etc/nginx/conf.d/:ro
+    restart: always
+    networks:
+      - wifi-network
+
+  asterisk:
+    ports:
+      - "15060:5060/udp"
+      - "1560:5060/tcp"
+      - "10000-20000:10000-20000/udp"
+      - "18088:8088/tcp"
+      - "15039:5038"
+    volumes:
+      - /etc/asterisk/:/etc/asterisk/:ro
+      - asterisk-data:/var/lib/asterisk
+      - asterisk-logs:/var/log/asterisk
+      - /var/spool/asterisk/:/var/spool/asterisk/
+    environment:
+      - TZ=America/Sao_Paulo
+    cap_add:
+      - NET_ADMIN
+    restart: always
+    networks:
+      - wifi-network
+
+volumes:
+  asterisk-data:
+  asterisk-logs:
+
+networks:
+  wifi-network:
+    driver: bridge

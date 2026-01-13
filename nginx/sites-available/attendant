@@ -1,0 +1,37 @@
+server {
+    listen 80;
+    server_name adm.homologacaotracevia.com.br;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name adm.homologacaotracevia.com.br;
+
+    # Certificado wildcard (mesmo usado no backend)
+    ssl_certificate /home/tracevia/app/certificates/homologacaotracevia.com.br-0003/fullchain.pem;
+    ssl_certificate_key /home/tracevia/app/certificates/homologacaotracevia.com.br-0003/privkey.pem;
+
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+
+
+    # Configurações de segurança SSL
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    # Proxy reverso para o Node.js na porta 4205
+    location / {
+        proxy_pass http://192.168.1.152:8080/Tracevia-0.0.1-SNAPSHOT/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Se estiver usando arquivos estáticos (build SPA), substitua o proxy por:
+    # root /var/www/app.homologacaotracevia.com.br;
+    # index index.html;
+    # try_files $uri $uri/ /index.html;
+}

@@ -1,0 +1,108 @@
+
+http {
+# Definições globais
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# -------------------------------
+# Asterisk (WebSocket)
+# -------------------------------
+server {
+    listen 80;
+    server_name homologacaotracevia.com.br;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name homologacaotracevia.com.br www.homologacaotracevia.com.br;
+
+    ssl_certificate /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    location /ws {
+        proxy_pass https://asterisk:8089/ws;   # <--- usa o serviço "asterisk" da rede docker
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 300s;
+    }
+}
+
+# -------------------------------
+# Backend (API)
+# -------------------------------
+server {
+    listen 80;
+    server_name api.homologacaotracevia.com.br;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name api.homologacaotracevia.com.br;
+
+    	
+    location / {
+        proxy_pass http://back:8085;   # <--- nome do serviço do backend
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 300s;
+    }
+}
+
+# -------------------------------
+# Frontend (App)
+# -------------------------------
+server {
+    listen 80;
+    server_name app.homologacaotracevia.com.br;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name app.homologacaotracevia.com.br;
+
+    ssl_certificate /home/tracevia/app/certificates/homologacaotracevia.com.br-0003/fullchain.pem;
+    ssl_certificate_key /home/tracevia/app/certificates/homologacaotracevia.com.br-0003/privkey.pem;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    include /etc/nginx/ssl-params.conf;
+
+    location / {
+        proxy_pass http://front:4205;   # <--- nome do serviço do frontend
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Se for SPA estática:
+    # root /usr/share/nginx/html;
+    # index index.html;
+    # try_files $uri $uri/ /index.html;
+}
+
+}
