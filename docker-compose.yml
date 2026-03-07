@@ -5,8 +5,8 @@ services:
     build: ./dns
     container_name: dns-server
     ports:
-      - "192.168.2.151:53:53/udp"
-      - "192.168.2.151:53:53/tcp"
+      - "192.168.0.151:53:53/udp"
+      - "192.168.0.151:53:53/tcp"
     volumes:
       - ./dns/dnsmasq.conf:/etc/dnsmasq.conf:ro
     restart: unless-stopped
@@ -41,9 +41,25 @@ services:
       MYSQL_USER: backend_user
       MYSQL_PASSWORD: trcvbr18
     ports:
-      - "192.168.2.151:3306:3306"
+      - "192.168.0.151:3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    networks:
+      - tracevia-net
+
+  wifi-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: wifi-sqlserver
+    restart: always
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Express"
+      MSSQL_SA_PASSWORD: "TrcvBr18!"
+      TZ: America/Sao_Paulo
+    ports:
+      - "192.168.0.151:1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
     networks:
       - tracevia-net
 
@@ -112,3 +128,4 @@ volumes:
   asterisk-logs:
   asterisk-spool:
   mysql-data:
+  sqlserver-data:
